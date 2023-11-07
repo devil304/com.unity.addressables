@@ -298,7 +298,7 @@ namespace UnityEngine.ResourceManagement
         {
             IUpdateReceiver updateReceiver = obj as IUpdateReceiver;
             if (updateReceiver != null)
-                RemoveUpdateReciever(updateReceiver);
+                RemoveUpdateReceiver(updateReceiver);
         }
 
         bool m_RegisteredForCallbacks = false;
@@ -935,7 +935,7 @@ namespace UnityEngine.ResourceManagement
         /// <returns>The operation handle.</returns>
         public AsyncOperationHandle<TObject> CreateChainOperation<TObject>(AsyncOperationHandle dependentOp, Func<AsyncOperationHandle, AsyncOperationHandle<TObject>> callback)
         {
-            var cOp = new ChainOperationTypelessDepedency<TObject>();
+            var cOp = new ChainOperationTypelessDependency<TObject>();
             cOp.Init(dependentOp, callback, true);
             return StartOperation(cOp, dependentOp);
         }
@@ -969,7 +969,7 @@ namespace UnityEngine.ResourceManagement
         public AsyncOperationHandle<TObject> CreateChainOperation<TObject>(AsyncOperationHandle dependentOp, Func<AsyncOperationHandle, AsyncOperationHandle<TObject>> callback,
             bool releaseDependenciesOnFailure = true)
         {
-            var cOp = new ChainOperationTypelessDepedency<TObject>();
+            var cOp = new ChainOperationTypelessDependency<TObject>();
             cOp.Init(dependentOp, callback, releaseDependenciesOnFailure);
             return StartOperation(cOp, dependentOp);
         }
