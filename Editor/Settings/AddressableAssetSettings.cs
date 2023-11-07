@@ -615,14 +615,29 @@ namespace UnityEditor.AddressableAssets.Settings
 			set { m_BuildRemoteCatalog = value; }
 		}
 
-		/// <summary>
-		/// Whether the local catalog should be serialized in an asset bundle or as json.
-		/// </summary>
-		public bool BundleLocalCatalog
-		{
-			get { return m_BundleLocalCatalog; }
-			set { m_BundleLocalCatalog = value; }
-		}
+        /// <summary>
+        /// Whether the local catalog should be serialized in an asset bundle or as json.
+        /// </summary>
+        public bool BundleLocalCatalog
+        {
+            get
+            {
+#if ENABLE_BINARY_CATALOG
+                return false;
+#else
+                return m_BundleLocalCatalog;
+#endif
+            }
+            set
+            {
+#if ENABLE_BINARY_CATALOG
+                m_BundleLocalCatalog = false;
+                Debug.LogWarning("Bundling the content catalog is not compatible with binary catalogs. Setting is disabled.");
+#else
+                m_BundleLocalCatalog = value;
+#endif
+            }
+        }
 
 		/// <summary>
 		/// Tells Addressables if it should check for a Content Catalog Update during the initialization step.

@@ -220,18 +220,21 @@ namespace UnityEngine.ResourceManagement.ResourceProviders
 				m_UnloadOptions = options;
 			}
 
-			protected override void Execute()
-			{
-				if (m_sceneLoadHandle.IsValid() && m_Instance.Scene.isLoaded)
-				{
-					var unloadOp = SceneManager.UnloadSceneAsync(m_Instance.Scene, m_UnloadOptions);
-					if (unloadOp == null)
-						UnloadSceneCompletedNoRelease(null);
-					else
-						unloadOp.completed += UnloadSceneCompletedNoRelease;
-				}
-				else
-					UnloadSceneCompleted(null);
+            protected override void Execute()
+            {
+                if (m_sceneLoadHandle.IsValid() && m_Instance.Scene.isLoaded)
+                {
+#if ENABLE_ADDRESSABLE_PROFILER && UNITY_2021_2_OR_NEWER
+                    Profiling.ProfilerRuntime.SceneReleased(m_sceneLoadHandle);
+#endif
+                    var unloadOp = SceneManager.UnloadSceneAsync(m_Instance.Scene, m_UnloadOptions);
+                    if (unloadOp == null)
+                        UnloadSceneCompletedNoRelease(null);
+                    else
+                        unloadOp.completed += UnloadSceneCompletedNoRelease;
+                }
+                else
+                    UnloadSceneCompleted(null);
 
 				HasExecuted = true;
 			}
@@ -294,15 +297,12 @@ namespace UnityEngine.ResourceManagement.ResourceProviders
 			return ((ISceneProvider2)(this)).ReleaseScene(resourceManager, sceneLoadHandle, UnloadSceneOptions.None);
 		}
 
-		/// <inheritdoc/>
-		AsyncOperationHandle<SceneInstance> ISceneProvider2.ReleaseScene(ResourceManager resourceManager, AsyncOperationHandle<SceneInstance> sceneLoadHandle, UnloadSceneOptions unloadOptions)
-		{
-			var unloadOp = new UnloadSceneOp();
-			unloadOp.Init(sceneLoadHandle, unloadOptions);
-#if ENABLE_ADDRESSABLE_PROFILER
-            Profiling.ProfilerRuntime.SceneReleased(sceneLoadHandle);
-#endif
-			return resourceManager.StartOperation(unloadOp, sceneLoadHandle);
-		}
-	}
+        /// <inheritdoc/>
+        AsyncOperationHandle<SceneInstance> ISceneProvider2.ReleaseScene(ResourceManager resourceManager, AsyncOperationHandle<SceneInstance> sceneLoadHandle, UnloadSceneOptions unloadOptions)
+        {
+            var unloadOp = new UnloadSceneOp();
+            unloadOp.Init(sceneLoadHandle, unloadOptions);
+            return resourceManager.StartOperation(unloadOp, sceneLoadHandle);
+        }
+    }
 }

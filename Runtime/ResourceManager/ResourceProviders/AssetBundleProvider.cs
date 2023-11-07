@@ -264,11 +264,11 @@ namespace UnityEngine.ResourceManagement.ResourceProviders
 			Web
 		}
 
-		AssetBundle m_AssetBundle;
-		AsyncOperation m_RequestOperation;
-		WebRequestQueueOperation m_WebRequestQueueOperation;
-		internal ProvideHandle m_ProvideHandle;
-		internal AssetBundleRequestOptions m_Options;
+        AssetBundle m_AssetBundle;
+        AsyncOperation m_RequestOperation;
+        internal WebRequestQueueOperation m_WebRequestQueueOperation;
+        internal ProvideHandle m_ProvideHandle;
+        internal AssetBundleRequestOptions m_Options;
 
 		[NonSerialized]
         bool m_RequestCompletedCallbackCalled = false;
@@ -416,14 +416,19 @@ namespace UnityEngine.ResourceManagement.ResourceProviders
 			return status;
 		}
 
-		/// <summary>
-		/// Get the asset bundle object managed by this resource.  This call may force the bundle to load if not already loaded.
-		/// </summary>
-		/// <returns>The asset bundle.</returns>
-		public AssetBundle GetAssetBundle()
-		{
-			return m_AssetBundle;
-		}
+        /// <summary>
+        /// Get the asset bundle object managed by this resource.  This call may force the bundle to load if not already loaded.
+        /// </summary>
+        /// <returns>The asset bundle.</returns>
+        public AssetBundle GetAssetBundle()
+        {
+            if (m_ProvideHandle.IsValid)
+            {
+                Debug.Assert(!(m_ProvideHandle.Location is DownloadOnlyLocation), "GetAssetBundle does not return a value when an AssetBundle is download only.");
+            }
+
+            return m_AssetBundle;
+        }
 
 #if ENABLE_ADDRESSABLE_PROFILER
         private void AddBundleToProfiler(Profiling.ContentStatus status, BundleSource source)
@@ -470,17 +475,16 @@ namespace UnityEngine.ResourceManagement.ResourceProviders
 		/// <param name="provideHandle">The container for information regarding loading the AssetBundle.</param>
 		public void Start(ProvideHandle provideHandle)
 #endif
-		{
-			m_Retries = 0;
-			m_AssetBundle = null;
-			m_RequestOperation = null;
-            m_RequestCompletedCallbackCalled = false;
-			m_ProvideHandle = provideHandle;
-			m_Options = m_ProvideHandle.Location.Data as AssetBundleRequestOptions;
-			m_BytesToDownload = -1;
-			m_ProvideHandle.SetProgressCallback(PercentComplete);
-			m_ProvideHandle.SetDownloadProgressCallbacks(GetDownloadStatus);
-			m_ProvideHandle.SetWaitForCompletionCallback(WaitForCompletionHandler);
+        {
+            m_Retries = 0;
+            m_AssetBundle = null;
+            m_RequestOperation = null;
+            m_ProvideHandle = provideHandle;
+            m_Options = m_ProvideHandle.Location.Data as AssetBundleRequestOptions;
+            m_BytesToDownload = -1;
+            m_ProvideHandle.SetProgressCallback(PercentComplete);
+            m_ProvideHandle.SetDownloadProgressCallbacks(GetDownloadStatus);
+            m_ProvideHandle.SetWaitForCompletionCallback(WaitForCompletionHandler);
 #if UNLOAD_BUNDLE_ASYNC
             m_UnloadOperation = unloadOp;
             if (m_UnloadOperation != null && !m_UnloadOperation.isDone)
@@ -596,57 +600,76 @@ namespace UnityEngine.ResourceManagement.ResourceProviders
                 path = path.Replace('\\', '/');
 		}
 
-		private void BeginOperation()
-		{
-			m_DownloadedBytes = 0;
-			GetLoadInfo(m_ProvideHandle, out LoadType loadType, out m_TransformedInternalId);
+        private void BeginOperation()
+        {
+            // retrying a failed request will call BeginOperation multiple times. Any member variables
+            // should be reset at the beginning of the operation
+            m_DownloadedBytes = 0;
+            m_RequestCompletedCallbackCalled = false;
+            GetLoadInfo(m_ProvideHandle, out LoadType loadType, out m_TransformedInternalId);
 
-			if (loadType == LoadType.Local)
-			{
-                m_Source = BundleSource.Local;
+            if (loadType == LoadType.Local)
+            {
+                LoadLocalBundle();
+                return;
+            }
+
+            if (loadType == LoadType.Web)
+            {
+                m_WebRequestQueueOperation = EnqueueWebRequest(m_TransformedInternalId);
+                AddBeginWebRequestHandler(m_WebRequestQueueOperation);
+                return;
+            }
+
+            m_Source = BundleSource.None;
+            m_RequestOperation = null;
+            m_ProvideHandle.Complete<AssetBundleResource>(null, false,
+                new RemoteProviderException(string.Format("Invalid path in AssetBundleProvider: '{0}'.", m_TransformedInternalId), m_ProvideHandle.Location));
+            m_Completed = true;
+        }
+
+        private void LoadLocalBundle()
+        {
+            m_Source = BundleSource.Local;
 #if !UNITY_2021_1_OR_NEWER
                 if (AsyncOperationHandle.IsWaitingForCompletion)
                     CompleteBundleLoad(AssetBundle.LoadFromFile(m_TransformedInternalId, m_Options == null ? 0 : m_Options.Crc));
                 else
 #endif
-				{
-					m_RequestOperation = AssetBundle.LoadFromFileAsync(m_TransformedInternalId, m_Options == null ? 0 : m_Options.Crc);
+            {
+                m_RequestOperation = AssetBundle.LoadFromFileAsync(m_TransformedInternalId, m_Options == null ? 0 : m_Options.Crc);
 #if ENABLE_ADDRESSABLE_PROFILER
                     AddBundleToProfiler(Profiling.ContentStatus.Loading, m_Source);
 #endif
-					AddCallbackInvokeIfDone(m_RequestOperation, LocalRequestOperationCompleted);
-				}
-			}
-			else if (loadType == LoadType.Web)
-			{
-				var req = CreateWebRequest(m_TransformedInternalId);
-#if ENABLE_ASYNC_ASSETBUNDLE_UWR
-				((DownloadHandlerAssetBundle)req.downloadHandler).autoLoadAssetBundle = !(m_ProvideHandle.Location is DownloadOnlyLocation);
-#endif
-				req.disposeDownloadHandlerOnDispose = false;
+                AddCallbackInvokeIfDone(m_RequestOperation, LocalRequestOperationCompleted);
+            }
+        }
 
-				m_WebRequestQueueOperation = WebRequestQueue.QueueRequest(req);
-				if (m_WebRequestQueueOperation.IsDone)
-                {
-					BeginWebRequestOperation(m_WebRequestQueueOperation.Result);
-			}
-			else
-			{
-#if ENABLE_ADDRESSABLE_PROFILER
-                    AddBundleToProfiler(Profiling.ContentStatus.Queue, m_Source);
+        internal WebRequestQueueOperation EnqueueWebRequest(string internalId)
+        {
+            var req = CreateWebRequest(internalId);
+#if ENABLE_ASYNC_ASSETBUNDLE_UWR
+            ((DownloadHandlerAssetBundle)req.downloadHandler).autoLoadAssetBundle = !(m_ProvideHandle.Location is DownloadOnlyLocation);
 #endif
-                    m_WebRequestQueueOperation.OnComplete += asyncOp => BeginWebRequestOperation(asyncOp);
-                }
+            req.disposeDownloadHandlerOnDispose = false;
+
+            return WebRequestQueue.QueueRequest(req);
+        }
+
+        internal void AddBeginWebRequestHandler(WebRequestQueueOperation webRequestQueueOperation)
+        {
+            if (webRequestQueueOperation.IsDone)
+            {
+                BeginWebRequestOperation(webRequestQueueOperation.Result);
             }
             else
             {
-                m_Source = BundleSource.None;
-				m_RequestOperation = null;
-				m_ProvideHandle.Complete<AssetBundleResource>(null, false,
-					new RemoteProviderException(string.Format("Invalid path in AssetBundleProvider: '{0}'.", m_TransformedInternalId), m_ProvideHandle.Location));
-				m_Completed = true;
-			}
-		}
+#if ENABLE_ADDRESSABLE_PROFILER
+                    AddBundleToProfiler(Profiling.ContentStatus.Queue, m_Source);
+#endif
+                webRequestQueueOperation.OnComplete += asyncOp => BeginWebRequestOperation(asyncOp);
+            }
+        }
 
 		private void BeginWebRequestOperation(AsyncOperation asyncOp)
 		{
@@ -734,7 +757,11 @@ namespace UnityEngine.ResourceManagement.ResourceProviders
 #if ENABLE_ADDRESSABLE_PROFILER
                     AddBundleToProfiler(Profiling.ContentStatus.Active, m_Source);
 #endif
-                    m_AssetBundle = downloadHandler.assetBundle;
+                    if (!(m_ProvideHandle.Location is DownloadOnlyLocation))
+                    {
+                        // this loads the bundle into memory which we don't want to do with download only bundles
+                        m_AssetBundle = downloadHandler.assetBundle;
+                    }
                     downloadHandler.Dispose();
                     downloadHandler = null;
 					m_ProvideHandle.Complete(this, true, null);
@@ -846,7 +873,14 @@ namespace UnityEngine.ResourceManagement.ResourceProviders
 	public class AssetBundleProvider : ResourceProviderBase
 	{
 #if UNLOAD_BUNDLE_ASYNC
-        private static Dictionary<string, AssetBundleUnloadOperation> m_UnloadingBundles = new Dictionary<string, AssetBundleUnloadOperation>();
+        internal static Dictionary<string, AssetBundleUnloadOperation> m_UnloadingBundles = new Dictionary<string, AssetBundleUnloadOperation>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void Init()
+        {
+            m_UnloadingBundles = new Dictionary<string, AssetBundleUnloadOperation>();
+        }
+
         /// <summary>
         /// Stores async operations that unload the requested AssetBundles.
         /// </summary>
@@ -922,8 +956,15 @@ namespace UnityEngine.ResourceManagement.ResourceProviders
 #else
 				bundle.Unload();
 #endif
-				return;
-			}
-		}
-	}
+                return;
+            }
+        }
+
+        internal virtual IOperationCacheKey CreateCacheKeyForLocation(ResourceManager rm, IResourceLocation location, Type desiredType)
+        {
+            //We need to transform the ID first
+            //so we don't try and load the same bundle twice if the user is manipulating the path at runtime.
+            return new IdCacheKey(rm.TransformInternalId(location));
+        }
+    }
 }

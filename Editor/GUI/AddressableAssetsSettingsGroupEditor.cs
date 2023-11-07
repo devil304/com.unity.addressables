@@ -247,8 +247,28 @@ namespace UnityEditor.AddressableAssets.GUI
 			return s;
 		}
 
-		[NonSerialized]
-		List<GUIStyle> m_SearchStyles;
+        void TopToolbar(Rect toolbarPos)
+        {
+            if (m_SearchStyles == null)
+            {
+                m_SearchStyles = new List<GUIStyle>();
+
+                string toolbarSearchTextField = "ToolbarSeachTextFieldPopup";
+                string toolbarSearchCancelButton = "ToolbarSeachCancelButton";
+                string toolbarSearchCancelButtonEmpty = "ToolbarSeachCancelButtonEmpty";
+
+                if(!AddressablesGUIUtility.HasStyle(toolbarSearchTextField))
+                {
+                    toolbarSearchTextField = "ToolbarSearchTextFieldPopup";
+                    toolbarSearchCancelButton = "ToolbarSearchCancelButton";
+                    toolbarSearchCancelButtonEmpty = "ToolbarSearchCancelButtonEmpty";
+                }
+
+                m_SearchStyles.Add(GetStyle(toolbarSearchTextField)); //GetStyle("ToolbarSearchTextField");
+                m_SearchStyles.Add(GetStyle(toolbarSearchCancelButton));
+                m_SearchStyles.Add(GetStyle(toolbarSearchCancelButtonEmpty));
+
+            }
 
 		[NonSerialized]
 		GUIStyle m_ButtonStyle;
