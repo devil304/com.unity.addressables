@@ -23,9 +23,9 @@ namespace UnityEditor.AddressableAssets.GUI
 	internal class AddressableAssetsSettingsGroupEditor
 	{
 		[System.AttributeUsage(AttributeTargets.Class)]
-        public class HideBuildMenuInUI : Attribute
-        {
-        }
+		public class HideBuildMenuInUI : Attribute
+		{
+		}
 
 		/// <summary>
 		/// Interface used for classes that implement Addressables build menu steps.
@@ -168,43 +168,43 @@ namespace UnityEditor.AddressableAssets.GUI
 			m_EntryTree.SetSelection(selectedIDs);
 		}
 
-        public void SelectGroup(AddressableAssetGroup group, bool fireSelectionChanged)
-        {
-            Stack<AssetEntryTreeViewItem> items = new Stack<AssetEntryTreeViewItem>();
+		public void SelectGroup(AddressableAssetGroup group, bool fireSelectionChanged)
+		{
+			Stack<AssetEntryTreeViewItem> items = new Stack<AssetEntryTreeViewItem>();
 
-            if (m_EntryTree == null || m_EntryTree.Root == null)
-                InitialiseEntryTree();
+			if (m_EntryTree == null || m_EntryTree.Root == null)
+				InitialiseEntryTree();
 
-            foreach (TreeViewItem item in m_EntryTree.Root.children)
-            {
-                if (item is AssetEntryTreeViewItem i)
-                    items.Push(i);
-            }
+			foreach (TreeViewItem item in m_EntryTree.Root.children)
+			{
+				if (item is AssetEntryTreeViewItem i)
+					items.Push(i);
+			}
 
-            while (items.Count > 0)
-            {
-                AssetEntryTreeViewItem item = items.Pop();
+			while (items.Count > 0)
+			{
+				AssetEntryTreeViewItem item = items.Pop();
 
-                if (item.IsGroup && item.group.Guid == group.Guid)
-                {
-                    m_EntryTree.FrameItem(item.id);
-                    var selectedIds = new List<int>(){ item.id };
-                    if (fireSelectionChanged)
-                        m_EntryTree.SetSelection(selectedIds, TreeViewSelectionOptions.FireSelectionChanged);
-                    else
-                        m_EntryTree.SetSelection(selectedIds);
-                    return;
-                }
-                else if (!string.IsNullOrEmpty(item.folderPath) && item.hasChildren)
-                {
-                    foreach (TreeViewItem child in item.children)
-                    {
-                        if (child is AssetEntryTreeViewItem c)
-                            items.Push(c);
-                    }
-                }
-            }
-        }
+				if (item.IsGroup && item.group.Guid == group.Guid)
+				{
+					m_EntryTree.FrameItem(item.id);
+					var selectedIds = new List<int>() { item.id };
+					if (fireSelectionChanged)
+						m_EntryTree.SetSelection(selectedIds, TreeViewSelectionOptions.FireSelectionChanged);
+					else
+						m_EntryTree.SetSelection(selectedIds);
+					return;
+				}
+				else if (!string.IsNullOrEmpty(item.folderPath) && item.hasChildren)
+				{
+					foreach (TreeViewItem child in item.children)
+					{
+						if (child is AssetEntryTreeViewItem c)
+							items.Push(c);
+					}
+				}
+			}
+		}
 
 		void OnSettingsModification(AddressableAssetSettings s, AddressableAssetSettings.ModificationEvent e, object o)
 		{
@@ -247,28 +247,8 @@ namespace UnityEditor.AddressableAssets.GUI
 			return s;
 		}
 
-        void TopToolbar(Rect toolbarPos)
-        {
-            if (m_SearchStyles == null)
-            {
-                m_SearchStyles = new List<GUIStyle>();
-
-                string toolbarSearchTextField = "ToolbarSeachTextFieldPopup";
-                string toolbarSearchCancelButton = "ToolbarSeachCancelButton";
-                string toolbarSearchCancelButtonEmpty = "ToolbarSeachCancelButtonEmpty";
-
-                if(!AddressablesGUIUtility.HasStyle(toolbarSearchTextField))
-                {
-                    toolbarSearchTextField = "ToolbarSearchTextFieldPopup";
-                    toolbarSearchCancelButton = "ToolbarSearchCancelButton";
-                    toolbarSearchCancelButtonEmpty = "ToolbarSearchCancelButtonEmpty";
-                }
-
-                m_SearchStyles.Add(GetStyle(toolbarSearchTextField)); //GetStyle("ToolbarSearchTextField");
-                m_SearchStyles.Add(GetStyle(toolbarSearchCancelButton));
-                m_SearchStyles.Add(GetStyle(toolbarSearchCancelButtonEmpty));
-
-            }
+		[NonSerialized]
+		List<GUIStyle> m_SearchStyles;
 
 		[NonSerialized]
 		GUIStyle m_ButtonStyle;
@@ -281,9 +261,22 @@ namespace UnityEditor.AddressableAssets.GUI
 			if (m_SearchStyles == null)
 			{
 				m_SearchStyles = new List<GUIStyle>();
-				m_SearchStyles.Add(GetStyle("ToolbarSearchTextFieldPopup", "ToolbarSeachTextFieldPopup")); //GetStyle("ToolbarSeachTextField");
-				m_SearchStyles.Add(GetStyle("ToolbarSearchCancelButton", "ToolbarSeachCancelButton"));
-				m_SearchStyles.Add(GetStyle("ToolbarSearchCancelButtonEmpty", "ToolbarSeachCancelButtonEmpty"));
+
+				string toolbarSearchTextField = "ToolbarSeachTextFieldPopup";
+				string toolbarSearchCancelButton = "ToolbarSeachCancelButton";
+				string toolbarSearchCancelButtonEmpty = "ToolbarSeachCancelButtonEmpty";
+
+				if (!AddressablesGUIUtility.HasStyle(toolbarSearchTextField))
+				{
+					toolbarSearchTextField = "ToolbarSearchTextFieldPopup";
+					toolbarSearchCancelButton = "ToolbarSearchCancelButton";
+					toolbarSearchCancelButtonEmpty = "ToolbarSearchCancelButtonEmpty";
+				}
+
+				m_SearchStyles.Add(GetStyle(toolbarSearchTextField)); //GetStyle("ToolbarSearchTextField");
+				m_SearchStyles.Add(GetStyle(toolbarSearchCancelButton));
+				m_SearchStyles.Add(GetStyle(toolbarSearchCancelButtonEmpty));
+
 			}
 
 			if (m_ButtonStyle == null)
@@ -344,19 +337,19 @@ namespace UnityEditor.AddressableAssets.GUI
                         menu.AddItem(new GUIContent("Window/Addressables Report"), false, BuildReportVisualizer.BuildReportWindow.ShowWindow);
 #endif
 
-                        menu.AddItem(new GUIContent("Groups View/Show Sprite and Subobject Addresses"), ProjectConfigData.ShowSubObjectsInGroupView, () =>
-                        {
-                            ProjectConfigData.ShowSubObjectsInGroupView = !ProjectConfigData.ShowSubObjectsInGroupView;
-                            m_EntryTree.Reload();
-                        });
-                        menu.AddItem(
-                            new GUIContent("Groups View/Group Hierarchy with Dashes",
-                                "If enabled, group names are parsed as if a '-' represented a child in hierarchy.  So a group called 'a-b-c' would be displayed as if it were in a folder called 'b' that lived in a folder called 'a'.  In this mode, only groups without '-' can be rearranged within the groups window."),
-                            ProjectConfigData.ShowGroupsAsHierarchy, () =>
-                            {
-                                ProjectConfigData.ShowGroupsAsHierarchy = !ProjectConfigData.ShowGroupsAsHierarchy;
-                                m_EntryTree.Reload();
-                            });
+						menu.AddItem(new GUIContent("Groups View/Show Sprite and Subobject Addresses"), ProjectConfigData.ShowSubObjectsInGroupView, () =>
+						{
+							ProjectConfigData.ShowSubObjectsInGroupView = !ProjectConfigData.ShowSubObjectsInGroupView;
+							m_EntryTree.Reload();
+						});
+						menu.AddItem(
+							new GUIContent("Groups View/Group Hierarchy with Dashes",
+								"If enabled, group names are parsed as if a '-' represented a child in hierarchy.  So a group called 'a-b-c' would be displayed as if it were in a folder called 'b' that lived in a folder called 'a'.  In this mode, only groups without '-' can be rearranged within the groups window."),
+							ProjectConfigData.ShowGroupsAsHierarchy, () =>
+							{
+								ProjectConfigData.ShowGroupsAsHierarchy = !ProjectConfigData.ShowGroupsAsHierarchy;
+								m_EntryTree.Reload();
+							});
 
 						menu.AddItem(new GUIContent("Groups View/Sort Groups"), false, OnSortGroups);
 						menu.AddItem(new GUIContent("Groups View/Reload"), false, Reload);
@@ -385,9 +378,9 @@ namespace UnityEditor.AddressableAssets.GUI
 							var m = settings.GetDataBuilder(i);
 							if (m.CanBuildData<AddressablesPlayModeBuildResult>())
 							{
-                                string text = m is Build.DataBuilders.BuildScriptPackedPlayMode
-                                    ? $"Use Existing Build ({PlatformMappingService.GetAddressablesPlatformPathInternal(EditorUserBuildSettings.activeBuildTarget)})"
-                                    : m.Name;
+								string text = m is Build.DataBuilders.BuildScriptPackedPlayMode
+									? $"Use Existing Build ({PlatformMappingService.GetAddressablesPlatformPathInternal(EditorUserBuildSettings.activeBuildTarget)})"
+									: m.Name;
 								menu.AddItem(new GUIContent(text), i == settings.ActivePlayModeDataBuilderIndex, OnSetActivePlayModeScript, i);
 							}
 						}
@@ -416,7 +409,7 @@ namespace UnityEditor.AddressableAssets.GUI
 									addressablesPlayerBuildResultBuilderExists = true;
 									BuildMenuContext context = new BuildMenuContext()
 									{
-                                        buildScriptIndex = i,
+										buildScriptIndex = i,
 										BuildMenu = buildOption,
 										Settings = settings
 									};
@@ -445,7 +438,7 @@ namespace UnityEditor.AddressableAssets.GUI
 						genericDropdownMenu.AddItem(new GUIContent("Clear Build Cache/Content Builders/" + m.Name), false, OnCleanAddressables, m);
 					}
 
-                    genericDropdownMenu.AddItem(new GUIContent("Clear Build Cache/Build Pipeline Cache"), false, OnCleanSBP, true);
+					genericDropdownMenu.AddItem(new GUIContent("Clear Build Cache/Build Pipeline Cache"), false, OnCleanSBP, true);
 					genericDropdownMenu.DropDown(rBuild);
 				}
 
@@ -682,10 +675,10 @@ namespace UnityEditor.AddressableAssets.GUI
 
 		void OnCleanAll()
 		{
-            if (!EditorUtility.DisplayDialog("Clear build cache", "Do you really want to clear your entire build cache and runtime data cache?", "Yes", "No"))
-                return;
+			if (!EditorUtility.DisplayDialog("Clear build cache", "Do you really want to clear your entire build cache and runtime data cache?", "Yes", "No"))
+				return;
 			OnCleanAddressables(null);
-            OnCleanSBP(false);
+			OnCleanSBP(false);
 		}
 
 		void OnCleanAddressables(object builder)
@@ -693,9 +686,9 @@ namespace UnityEditor.AddressableAssets.GUI
 			AddressableAssetSettings.CleanPlayerContent(builder as IDataBuilder);
 		}
 
-        void OnCleanSBP(object prompt)
+		void OnCleanSBP(object prompt)
 		{
-            BuildCache.PurgeCache((bool) prompt);
+			BuildCache.PurgeCache((bool)prompt);
 		}
 
 		void OnPrepareUpdate()
